@@ -741,6 +741,7 @@ const api = {
   listEmails: (mid, page = 1, size = INBOX_EMAIL_PAGE_SIZE, q = '') => api.listEmailsPage(mid, page, size, q).then(d => d.data || []),
   getEmail:   (mid, eid) => apiFetch(API_BASE + '/mailboxes/' + mid + '/emails/' + eid).then(d => d.email || d),
   deleteEmail:(mid, eid) => apiFetch(API_BASE + '/mailboxes/' + mid + '/emails/' + eid, { method: 'DELETE' }),
+  sendEmail:  (mid, body) => apiFetch(API_BASE + '/mailboxes/' + mid + '/send', { method: 'POST', body: JSON.stringify(body) }),
   // 管理
   admin: {
     listAccountsPage:  (page = 1, size = ADMIN_ACCOUNT_PAGE_SIZE, q = '', role = 'all') =>
@@ -1456,6 +1457,7 @@ function buildMailboxCard(mb, bulkKey = 'dashboard-mailboxes') {
       </div>
       <div class="mailbox-actions">
         <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openInbox('${mb.id}','${escHtml(mb.full_address)}')">📬 查看邮件</button>
+        ${buildSendMailButton(mb, true)}
         <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();copyText('${escHtml(mb.full_address)}')" title="复制地址">⎘</button>
         <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();confirmDeleteMailbox('${mb.id}','${escHtml(mb.full_address)}')">✕</button>
       </div>
@@ -1798,6 +1800,152 @@ window.confirmDeleteMailbox = function(id, addr) {
   );
 };
 
+function buildSendMailButton(mb, stopPropagation = false) {
+  if (!canSendFromMailbox(mb)) return '';
+  const stop = stopPropagation ? 'event.stopPropagation();' : '';
+  const encodedAddress = encodeURIComponent(mb.full_address || '');
+  return `<button class="btn btn-success btn-sm" onclick="${stop}showSendMailModal('${mb.id}','${encodedAddress}')">✉ 写邮件</button>`;
+}
+
+function canSendFromMailbox(mb = state.currentMailbox) {
+  return !!mb?.id && !isAdminCatchallScope(mb);
+}
+
+function getMailboxAddress(mailboxId, fallback = '') {
+  if (state.currentMailbox?.id === mailboxId && state.currentMailbox.full_address) {
+    return state.currentMailbox.full_address;
+  }
+  const found = (state.mailboxes || []).find(mb => mb.id === mailboxId);
+  return found?.full_address || fallback || '当前邮箱';
+}
+
+function decodeURIComponentSafe(value) {
+  try { return decodeURIComponent(value || ''); } catch (_) { return value || ''; }
+}
+
+window.showSendMailModal = function(mailboxId, encodedAddress = '') {
+  const mb = {
+    id: mailboxId,
+    full_address: getMailboxAddress(mailboxId, decodeURIComponentSafe(encodedAddress)),
+    scope: 'regular',
+  };
+  if (!canSendFromMailbox(mb)) {
+    toast('该邮箱暂不支持发件', 'warn');
+    return;
+  }
+  const old = document.querySelector('.modal-overlay');
+  if (old) old.remove();
+  const overlay = el('div', 'modal-overlay');
+  overlay.innerHTML = buildSendMailModalHtml(mb);
+  document.body.appendChild(overlay);
+  wireSendMailModal(overlay, mb);
+};
+
+function buildSendMailModalHtml(mb) {
+  return `
+    <div class="modal send-mail-modal">
+      <div class="modal-title">写邮件</div>
+      <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">✕</button>
+      <div class="send-mail-note">回信将进入 <strong>${escHtml(mb.full_address)}</strong></div>
+      <div class="form-group">
+        <label class="form-label" for="send-to">收件人</label>
+        <textarea class="form-input form-textarea send-recipient-input" id="send-to" rows="2" placeholder="friend@example.com, team@example.com"></textarea>
+        <div class="form-hint">多个地址可用逗号、分号或换行分隔。</div>
+      </div>
+      <div class="send-mail-grid">
+        <div class="form-group">
+          <label class="form-label" for="send-cc">抄送</label>
+          <textarea class="form-input form-textarea send-recipient-input" id="send-cc" rows="2"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="send-bcc">密送</label>
+          <textarea class="form-input form-textarea send-recipient-input" id="send-bcc" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="send-subject">主题</label>
+        <input class="form-input" id="send-subject" autocomplete="off" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="send-body">正文</label>
+        <textarea class="form-input form-textarea send-body-input" id="send-body" rows="9"></textarea>
+      </div>
+      <div class="form-error" id="send-mail-error" role="alert" style="display:none"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">取消</button>
+        <button class="btn btn-primary" id="send-mail-submit">发送</button>
+      </div>
+    </div>
+  `;
+}
+
+function wireSendMailModal(overlay, mb) {
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  overlay.querySelector('#send-mail-submit').addEventListener('click', () => submitSendMailForm(overlay, mb));
+  overlay.querySelectorAll('input, textarea').forEach(input => {
+    input.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') submitSendMailForm(overlay, mb);
+    });
+  });
+  overlay.querySelector('#send-to')?.focus();
+}
+
+function splitRecipients(raw) {
+  return String(raw || '').split(/[\n,;]+/).map(item => item.trim()).filter(Boolean);
+}
+
+function collectSendMailRequest(overlay) {
+  const req = {
+    to: splitRecipients(overlay.querySelector('#send-to')?.value),
+    subject: overlay.querySelector('#send-subject')?.value.trim() || '',
+    body_text: overlay.querySelector('#send-body')?.value.trim() || '',
+  };
+  const cc = splitRecipients(overlay.querySelector('#send-cc')?.value);
+  const bcc = splitRecipients(overlay.querySelector('#send-bcc')?.value);
+  if (cc.length) req.cc = cc;
+  if (bcc.length) req.bcc = bcc;
+  return req;
+}
+
+function validateSendMailRequest(req) {
+  if (!req.to.length) return '请填写至少一个收件人';
+  if (!req.subject) return '请填写邮件主题';
+  if (!req.body_text) return '请填写邮件正文';
+  return '';
+}
+
+function setSendMailError(overlay, message = '') {
+  const box = overlay.querySelector('#send-mail-error');
+  if (!box) return;
+  box.textContent = message;
+  box.style.display = message ? '' : 'none';
+}
+
+function formatSendMailError(error) {
+  const detail = error?.response?.detail;
+  return detail ? `${error.message}: ${detail}` : error.message;
+}
+
+async function submitSendMailForm(overlay, mb) {
+  const btn = overlay.querySelector('#send-mail-submit');
+  const req = collectSendMailRequest(overlay);
+  const validationError = validateSendMailRequest(req);
+  setSendMailError(overlay, validationError);
+  if (validationError) return;
+  btn.disabled = true;
+  btn.textContent = '发送中...';
+  try {
+    await api.sendEmail(mb.id, req);
+    overlay.remove();
+    toast('邮件已发送', 'success');
+  } catch(e) {
+    setSendMailError(overlay, '发送失败：' + formatSendMailError(e));
+    toast('发送失败：' + e.message, 'error');
+    btn.disabled = false;
+    btn.textContent = '发送';
+  }
+}
+
 // ─── API Key 展示 ──────────────────────────────────────────
 function renderApiKeyShow(container) {
   const key = state.apiKey || '—';
@@ -1842,6 +1990,7 @@ async function renderInbox(container) {
   const actions = $('topbar-actions');
   if (actions) {
     actions.innerHTML = `
+      ${buildSendMailButton(mb)}
       <button class="btn btn-ghost btn-sm" onclick="copyText('${escHtml(mb.full_address)}')">⎘ 复制地址</button>
       <button class="btn btn-primary btn-sm" onclick="refreshInbox()" style="margin-left:0.4rem">↻ 刷新</button>
       <button class="btn btn-ghost btn-sm" onclick="navigate('${backPage}')" style="margin-left:0.4rem">← 返回</button>
