@@ -12,7 +12,7 @@ echo "==> Starting Postfix mail receiver..."
 # 设置权限
 chmod +x /usr/local/bin/mail-receiver
 
-API_URL="${API_URL:-http://api:8080}"
+API_URL="${API_URL:-http://api:8967}"
 
 # 生成初始虚拟域名列表（regexp map，可为空）
 cat > /etc/postfix/virtual_domains << 'MAP'
@@ -23,8 +23,8 @@ MAP
 cat > /usr/local/bin/sync-domains.sh << 'SCRIPT'
 #!/bin/bash
 # 从 API 获取域名列表并更新 Postfix 虚拟域名
-# ★ API_URL 默认为 http://api:8080，可通过环境变量覆盖。
-API_URL="${API_URL:-http://api:8080}"
+# ★ API_URL 默认为 http://api:8967，可通过环境变量覆盖。
+API_URL="${API_URL:-http://api:8967}"
 DOMAINS=$(curl -sf "${API_URL}/internal/domains" 2>/dev/null || echo "")
 if [ -n "$DOMAINS" ]; then
     echo "$DOMAINS" | python3 -c "

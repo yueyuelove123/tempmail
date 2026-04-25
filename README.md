@@ -68,7 +68,9 @@ docker compose logs api | grep "ADMIN API KEY"
 
 ### 4. 访问 Web 界面
 
-浏览器打开 `http://<服务器IP>`，在登录页输入管理员 API Key 登录。
+默认浏览器打开 `http://<服务器IP>:8888`，在登录页输入管理员 API Key 登录。
+
+如果宿主机 80 端口未被 OpenResty/Nginx 等服务占用，也可以在 `.env` 中设置 `WEB_PORT=80` 后使用 `http://<服务器IP>` 访问。
 
 ---
 
@@ -83,7 +85,8 @@ docker compose logs api | grep "ADMIN API KEY"
 | `API_DB_DSN` | `postgres://tempmail:<POSTGRES_PASSWORD>@pgbouncer:6432/tempmail?sslmode=disable` | Go API 连接 PgBouncer 的数据库连接串 |
 | `API_REDIS_ADDR` | `redis:6379` | Go API 使用的 Redis 容器内地址 |
 | `API_REDIS_PASSWORD` | *(必填)* | Redis 密码，应与 `REDIS_PASSWORD` 保持一致 |
-| `API_PORT` | `8080` | API 监听端口 |
+| `WEB_PORT` | `8888` | 前端 Web 暴露到宿主机的端口，容器内仍监听 80 |
+| `API_PORT` | `8967` | API 监听端口 |
 | `API_RATE_LIMIT` | `500` | 每令牌每窗口期最大请求数 |
 | `API_RATE_WINDOW` | `60` | 速率窗口（秒）|
 

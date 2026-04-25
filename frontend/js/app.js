@@ -1816,7 +1816,7 @@ function renderApiKeyShow(container) {
         <p style="font-size:0.76rem;color:var(--text-muted)">点击 Key 可显示明文。保存后请妥善保管，丢失需联系管理员重置。</p>
         <div class="divider"></div>
         <div class="form-label">HTTP 请求示例</div>
-        <div class="code-box" style="font-size:0.75rem">curl -H "Authorization: Bearer &lt;api_key&gt;" http://server:8080/api/mailboxes</div>
+        <div class="code-box" style="font-size:0.75rem">curl -H "Authorization: Bearer &lt;api_key&gt;" http://server:8967/api/mailboxes</div>
       </div>
     </div>
   `;

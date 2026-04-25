@@ -16,6 +16,6 @@ ENV TZ=Asia/Shanghai
 
 COPY --from=builder /build/api-server /usr/local/bin/api-server
 
-EXPOSE 8080
+EXPOSE 8967
 
 CMD ["api-server"]

@@ -14,12 +14,12 @@ import urllib.request
 import urllib.error
 
 # ★ API_URL：指向 Go API 容器的地址。
-# 默认 http://api:8080，"api" 是 Docker 内部服务名，"8080" 是容器内端口。
+# 默认 http://api:8967，"api" 是 Docker 内部服务名，"8967" 是容器内端口。
 # 如果你修改了 .env 中的 API_PORT（比如改成 9000），
 # 需要在 docker-compose.yml 的 postfix.environment 中添加：
 #   API_URL: http://api:9000
-# 或者直接修改下面这行的默认值 "http://api:8080" → "http://api:9000"
-API_URL = os.environ.get("API_URL", "http://api:8080")
+# 或者直接修改下面这行的默认值 "http://api:8967" → "http://api:9000"
+API_URL = os.environ.get("API_URL", "http://api:8967")
 
 
 def main():
