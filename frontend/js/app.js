@@ -1845,7 +1845,7 @@ function buildSendMailModalHtml(mb) {
   return `
     <div class="modal send-mail-modal">
       <div class="modal-title">写邮件</div>
-      <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">✕</button>
+      <button class="modal-close" aria-label="关闭发件窗口" title="关闭" onclick="this.closest('.modal-overlay').remove()">✕</button>
       <div class="send-mail-note">回信将进入 <strong>${escHtml(mb.full_address)}</strong></div>
       <div class="form-group">
         <label class="form-label" for="send-to">收件人</label>
@@ -1872,7 +1872,6 @@ function buildSendMailModalHtml(mb) {
       </div>
       <div class="form-error" id="send-mail-error" role="alert" style="display:none"></div>
       <div class="modal-actions">
-        <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">取消</button>
         <button class="btn btn-primary" id="send-mail-submit">发送</button>
       </div>
     </div>
