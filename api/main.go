@@ -15,6 +15,7 @@ import (
 	"tempmail/config"
 	"tempmail/handler"
 	"tempmail/middleware"
+	"tempmail/outbound"
 	"tempmail/store"
 
 	"github.com/gin-contrib/cors"
@@ -80,6 +81,16 @@ func main() {
 	settingH := handler.NewSettingHandler(db)
 	registerH := handler.NewRegisterHandler(db)
 	statsH := handler.NewStatsHandler(db)
+	outboundSender := outbound.NewResendSender(outbound.ResendConfig{
+		APIKey:      cfg.ResendAPIKey,
+		APIURL:      cfg.ResendAPIURL,
+		FromAddress: cfg.ResendFromAddress,
+		FromName:    cfg.ResendFromName,
+	})
+	outboundH := handler.NewOutboundHandler(
+		db, outboundSender, cfg.OutboundEmailEnabled,
+		cfg.ResendFromAddress, cfg.OutboundMaxRecipients,
+	)
 
 	// 公开路由（无需认证）
 	public := r.Group("/public")
@@ -113,6 +124,7 @@ func main() {
 		api.GET("/mailboxes/:id/emails", emailH.List)
 		api.GET("/mailboxes/:id/emails/:email_id", emailH.Get)
 		api.DELETE("/mailboxes/:id/emails/:email_id", emailH.Delete)
+		api.POST("/mailboxes/:id/send", outboundH.Send)
 		// 管理员路由
 		admin := api.Group("/admin")
 		admin.Use(middleware.AdminOnly())

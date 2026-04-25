@@ -4,9 +4,11 @@
 FROM golang:1.23-alpine AS builder
 
 WORKDIR /build
+COPY go.mod go.sum ./
+RUN go mod download
+
 COPY . .
-RUN go mod tidy && go mod download
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /build/api-server .
+RUN GOMAXPROCS=1 CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /build/api-server .
 
 # ==================== 运行阶段 ====================
 FROM alpine:3.20

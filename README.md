@@ -89,12 +89,20 @@ docker compose logs api | grep "ADMIN API KEY"
 | `API_PORT` | `8967` | API 监听端口 |
 | `API_RATE_LIMIT` | `500` | 每令牌每窗口期最大请求数 |
 | `API_RATE_WINDOW` | `60` | 速率窗口（秒）|
+| `OUTBOUND_EMAIL_ENABLED` | `false` | 是否开启 Resend 发件 API |
+| `RESEND_API_KEY` | *(开启发件时必填)* | Resend API Key，仅写入本地 `.env` |
+| `RESEND_FROM_ADDRESS` | `noreply@655588.xyz` | 固定发件地址，用户邮箱会作为 Reply-To |
+| `RESEND_FROM_NAME` | `TempMail` | 发件显示名 |
+| `OUTBOUND_MAX_RECIPIENTS` | `50` | 单封邮件 To/Cc/Bcc 总收件人数上限 |
 
 `.env` 示例：
 
 ```dotenv
 SMTP_SERVER_IP=1.2.3.4
 SMTP_HOSTNAME=mail.yourdomain.com
+OUTBOUND_EMAIL_ENABLED=true
+RESEND_API_KEY=re_xxxxx
+RESEND_FROM_ADDRESS=noreply@655588.xyz
 ```
 
 > `SMTP_SERVER_IP` / `SMTP_HOSTNAME` 也可在管理后台「系统设置」中修改，DB 值优先于环境变量。
@@ -337,6 +345,12 @@ curl "$BASE/api/mailboxes" -H "Authorization: Bearer $KEY"
 # 读取邮件
 curl "$BASE/api/mailboxes/<mailbox-id>/emails" -H "Authorization: Bearer $KEY"
 
+# 通过 Resend 发信（From 固定为 RESEND_FROM_ADDRESS，Reply-To 为该邮箱地址）
+curl -X POST "$BASE/api/mailboxes/<mailbox-id>/send" \
+  -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"to":["friend@example.com"],"subject":"Hello","body_text":"Hi from TempMail"}'
+
 # 提交域名（任意登录用户）
 curl -X POST "$BASE/api/domains/submit" \
   -H "Authorization: Bearer $KEY" \
@@ -449,12 +463,13 @@ X-RateLimit-Reset: 1735000000
 | `sql/migrate_v3.sql` | v2 → v3：域名 `status`、`mx_checked_at`，新增系统配置项（含 `smtp_hostname`）|
 | `sql/migrate_v4.sql` | v3 → v4：新增 catch-all 支持、系统账号、角色切换与 catch-all 策略设置 |
 | `sql/migrate_v5.sql` | v4 → v5：新增永久邮箱额度、永久邮箱标记、管理员保留地址设置 |
+| `sql/migrate_v6.sql` | v5 → v6：新增 Resend 发件日志表 `outbound_emails` |
 
 对已运行的库执行迁移：
 
 ```bash
 docker exec -i $(docker compose ps -q postgres) \
-  psql -U tempmail -d tempmail < sql/migrate_v5.sql
+  psql -U tempmail -d tempmail < sql/migrate_v6.sql
 ```
 
 > 当前的通配域名能力直接复用原有 `domains.domain` 字段存储 `*.example.com`，因此已升级到 v5 的数据库无需额外 SQL 迁移。

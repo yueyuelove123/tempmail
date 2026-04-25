@@ -82,7 +82,34 @@ CREATE TABLE emails (
 CREATE INDEX idx_emails_mailbox_received ON emails (mailbox_id, received_at DESC);
 
 -- ============================================================
--- 5. 初始管理员账号
+-- 5. 发件日志表 (outbound_emails)
+-- ============================================================
+CREATE TABLE outbound_emails (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    account_id          UUID         NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    mailbox_id          UUID         NOT NULL REFERENCES mailboxes(id) ON DELETE CASCADE,
+    from_addr           VARCHAR(320) NOT NULL,
+    reply_to            VARCHAR(320) NOT NULL DEFAULT '',
+    to_addrs            TEXT[]       NOT NULL DEFAULT '{}',
+    cc_addrs            TEXT[]       NOT NULL DEFAULT '{}',
+    bcc_addrs           TEXT[]       NOT NULL DEFAULT '{}',
+    subject             VARCHAR(998) NOT NULL DEFAULT '',
+    body_text           TEXT         NOT NULL DEFAULT '',
+    body_html           TEXT         NOT NULL DEFAULT '',
+    provider            VARCHAR(32)  NOT NULL DEFAULT 'resend',
+    provider_message_id VARCHAR(255) NOT NULL DEFAULT '',
+    status              VARCHAR(32)  NOT NULL DEFAULT 'queued',
+    error               TEXT         NOT NULL DEFAULT '',
+    created_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    sent_at             TIMESTAMPTZ
+);
+
+CREATE INDEX idx_outbound_account_created ON outbound_emails (account_id, created_at DESC);
+CREATE INDEX idx_outbound_mailbox_created ON outbound_emails (mailbox_id, created_at DESC);
+CREATE INDEX idx_outbound_status ON outbound_emails (status);
+
+-- ============================================================
+-- 6. 初始管理员账号
 -- ============================================================
 INSERT INTO accounts (username, api_key, is_admin)
 VALUES ('admin', 'tm_admin_' || encode(gen_random_bytes(24), 'hex'), TRUE);
@@ -92,12 +119,12 @@ VALUES ('_catchall', 'tm_sys_' || encode(gen_random_bytes(24), 'hex'), FALSE, FA
 ON CONFLICT (username) DO NOTHING;
 
 -- ============================================================
--- 6. 初始域名（请在启动后通过管理后台或 API 添加实际域名）
+-- 7. 初始域名（请在启动后通过管理后台或 API 添加实际域名）
 -- ============================================================
 -- INSERT INTO domains (domain) VALUES ('mail.yourdomain.com');
 
 -- ============================================================
--- 7. 应用设置表 (app_settings)
+-- 8. 应用设置表 (app_settings)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS app_settings (
     key        VARCHAR(64) PRIMARY KEY,
