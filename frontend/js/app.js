@@ -1880,7 +1880,6 @@ function buildSendMailModalHtml(mb) {
 }
 
 function wireSendMailModal(overlay, mb) {
-  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
   overlay.querySelector('#send-mail-submit').addEventListener('click', () => submitSendMailForm(overlay, mb));
   overlay.querySelectorAll('input, textarea').forEach(input => {
     input.addEventListener('keydown', e => {
