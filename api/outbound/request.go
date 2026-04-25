@@ -75,7 +75,7 @@ func normalizeRecipients(values []string) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, addr.String())
+		out = append(out, addr.Address)
 	}
 	return out, nil
 }

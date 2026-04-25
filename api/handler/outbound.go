@@ -117,11 +117,20 @@ func (h *OutboundHandler) createRecord(c *gin.Context, account *model.Account, m
 
 func (h *OutboundHandler) respondSendFailure(c *gin.Context, recordID uuid.UUID, sendErr error) {
 	record, err := h.store.MarkOutboundEmailFailed(c.Request.Context(), recordID, sendErr.Error())
+	status := sendFailureHTTPStatus(sendErr)
 	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "send failed", "detail": sendErr.Error()})
+		c.JSON(status, gin.H{"error": "send failed", "detail": sendErr.Error()})
 		return
 	}
-	c.JSON(http.StatusBadGateway, gin.H{"error": "send failed", "detail": sendErr.Error(), "outbound_email": record})
+	c.JSON(status, gin.H{"error": "send failed", "detail": sendErr.Error(), "outbound_email": record})
+}
+
+func sendFailureHTTPStatus(sendErr error) int {
+	var providerErr *outbound.ProviderError
+	if errors.As(sendErr, &providerErr) && providerErr.StatusCode >= 400 && providerErr.StatusCode < 500 {
+		return providerErr.StatusCode
+	}
+	return http.StatusBadGateway
 }
 
 func messageFrom(mailbox *model.Mailbox, req outbound.SendRequest) outbound.Message {

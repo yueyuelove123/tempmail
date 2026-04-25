@@ -35,6 +35,15 @@ type SendResult struct {
 	ProviderMessageID string
 }
 
+type ProviderError struct {
+	StatusCode int
+	Body       string
+}
+
+func (e *ProviderError) Error() string {
+	return fmt.Sprintf("resend status %d: %s", e.StatusCode, e.Body)
+}
+
 type Sender interface {
 	Send(ctx context.Context, msg Message) (*SendResult, error)
 }
@@ -93,7 +102,7 @@ func (s *ResendSender) do(req *http.Request) (*SendResult, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("resend status %d: %s", resp.StatusCode, readLimited(resp.Body))
+		return nil, &ProviderError{StatusCode: resp.StatusCode, Body: readLimited(resp.Body)}
 	}
 	var result struct {
 		ID string `json:"id"`
