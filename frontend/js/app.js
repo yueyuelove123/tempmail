@@ -1536,6 +1536,7 @@ window.createMailbox = async function() {
   const permanentRemaining = getPermanentMailboxRemaining(state.mailboxes, state.account);
   const permanentDisabled = !isAdmin && permanentRemaining <= 0;
   const { exact: exactDomains, wildcard: wildcardDomains } = splitManagedDomains(activeDomains);
+  const defaultWildcardDomain = wildcardDomains[0]?.domain || '';
 
   const domainOptions = exactDomains.map(d =>
     `<option value="${escHtml(d.domain)}">${escHtml(d.domain)}</option>`
@@ -1546,12 +1547,12 @@ window.createMailbox = async function() {
   const customDomainPlaceholder = wildcardDomains[0]
     ? getWildcardDomainExample(wildcardDomains[0].domain)
     : 'inbox.example.com';
-  const wildcardOptions = wildcardDomains.map(d =>
-    `<option value="${escHtml(d.domain)}">${escHtml(d.domain)}（基于 ${escHtml(getWildcardBaseDomain(d.domain))} 分配真实子域）</option>`
-  ).join('');
+  const wildcardOptions = wildcardDomains.map(d => `
+    <option value="${escHtml(d.domain)}" ${d.domain === defaultWildcardDomain ? 'selected' : ''}>${escHtml(d.domain)}（基于 ${escHtml(getWildcardBaseDomain(d.domain))} 分配真实子域）</option>
+  `).join('');
   const wildcardModeOptions = `
+    <option value="wordlist" selected>词库随机（可后台编辑）</option>
     <option value="random">完全随机</option>
-    <option value="wordlist">词库随机（可后台编辑）</option>
     <option value="custom">自定义</option>
   `;
   const wildcardQuickFillHtml = wildcardDomains.length > 0 ? `
@@ -1615,7 +1616,7 @@ window.createMailbox = async function() {
       ${wildcardQuickFillHtml}
       <div class="form-group">
         <label class="form-label" style="display:flex;align-items:center;gap:0.45rem">
-          <input type="checkbox" id="mb-permanent" ${permanentDisabled ? 'disabled' : ''} />
+          <input type="checkbox" id="mb-permanent" ${permanentDisabled ? 'disabled' : (isAdmin ? 'checked' : '')} />
           创建为永久邮箱
         </label>
         <div class="form-hint">
